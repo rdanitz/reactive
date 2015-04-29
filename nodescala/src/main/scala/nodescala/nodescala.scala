@@ -1,5 +1,6 @@
 package nodescala
 
+import scala.language.postfixOps
 import com.sun.net.httpserver._
 import scala.concurrent._
 import scala.concurrent.duration._
@@ -29,7 +30,11 @@ trait NodeScala {
    *  @param token        the cancellation token 
    *  @param body         the response to write back
    */
-  private def respond(exchange: Exchange, token: CancellationToken, response: Response): Unit = ???
+  private def respond(exchange: Exchange, token: CancellationToken, response: Response): Unit = {
+    while (token.nonCancelled && response.hasNext)
+      exchange.write(response.next)
+    exchange.close
+  }
 
   /** A server:
    *  1) creates and starts an http listener
@@ -41,8 +46,21 @@ trait NodeScala {
    *  @param handler        a function mapping a request to a response
    *  @return               a subscription that can stop the server and all its asynchronous operations *entirely*
    */
-  def start(relativePath: String)(handler: Request => Response): Subscription = ???
-
+  def start(relativePath: String)(handler: Request => Response): Subscription = {
+    val listener = createListener(relativePath)
+    val listenerSubscription = listener.start()
+    val nodeSubscription = Future.run() { ct =>
+      Future {
+        while (ct.nonCancelled)
+          Await.result(listener.nextRequest(), 30 second) match {
+          case (request, exchange) => Future { 
+            respond(exchange, ct, handler(request))
+          }
+        }
+      }
+    }
+    Subscription(listenerSubscription, nodeSubscription)
+  }
 }
 
 
@@ -71,7 +89,6 @@ object NodeScala {
     def close(): Unit
 
     def request: Request
-
   }
 
   object Exchange {
@@ -152,5 +169,4 @@ object NodeScala {
   class Default(val port: Int) extends NodeScala {
     def createListener(relativePath: String) = new Listener.Default(port, relativePath)
   }
-
 }
