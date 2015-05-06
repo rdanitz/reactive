@@ -66,5 +66,11 @@ class WikipediaApiTest extends FunSuite {
     }
     assert(total == (1 + 1 + 2 + 1 + 2 + 3), s"Sum: $total")
   }
+  test("WikipediaApi should correctly use timedOut") {
+    val requests = Observable.just(1, 2, 3).zip(Observable.interval(700 millis))
+    val responses = requests.timedOut(1L)
+    val result = responses.toBlocking.toList 
+    assert(result == List((1, 0)), "")
+  }
 
 }
