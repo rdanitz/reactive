@@ -1,1 +1,5 @@
 **/target
+**/lib_managed
+secret.txt
+*/src/main/scala/*/*.scala
+.*
