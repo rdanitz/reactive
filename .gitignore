@@ -1,6 +1,6 @@
 **/target
 **/lib_managed
 secret.txt
-*/src/main/scala/*/*.scala
+*/src/main/scala/**/*.scala
 .*
 */submission
